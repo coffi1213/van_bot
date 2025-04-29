@@ -99,7 +99,7 @@ async def product_description(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=AddProductState.category)
 async def product_category(message: types.Message, state: FSMContext):
-    await state.
+    await AddProductState.photos.set()
 update_data(category=message.text)
     await message.answer("Введите цену товара (только число):")
     await AddProductState.price.set()
