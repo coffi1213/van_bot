@@ -3,6 +3,7 @@ import asyncio
 import aiosqlite
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -20,7 +21,6 @@ dp = Dispatcher(bot, storage=storage)
 
 DB_PATH = "bot.db"
 
-# Стейты для добавления товара
 class AddProductState(StatesGroup):
     name = State()
     description = State()
@@ -44,11 +44,19 @@ async def start_handler(message: types.Message):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT * FROM products") as cursor:
             products = await cursor.fetchall()
+
+            await message.answer(f"Найдено товаров: {len(products)}")  # Отладка
+
             if not products:
                 await message.answer("Товары временно отсутствуют.")
                 return
+
             for p in products:
-                _, name, desc, price, photos, *_ = p
+                name, desc, price, photos, *_ = p[1:]
+                if not photos:
+                    await message.answer("У товара нет фото, пропускаем.")
+                    continue
+
                 photo_list = photos.split(",")
                 for i, photo_url in enumerate(photo_list):
                     caption = f"<b>{name}</b>\n{desc}\nЦена: {price}₽" if i == 0 else ""
@@ -80,9 +88,10 @@ async def admin_panel(message: types.Message):
     await message.answer("Админ-панель:", reply_markup=kb)
 
 @dp.callback_query_handler(lambda c: c.data == "add_product")
-async def start_add_product(callback: types.CallbackQuery):
+async def start_add_product(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Введите название товара:")
     await AddProductState.name.set()
+    await state.update_data(photos=[])
 
 @dp.message_handler(state=AddProductState.name)
 async def product_name(message: types.Message, state: FSMContext):
@@ -93,23 +102,25 @@ async def product_name(message: types.Message, state: FSMContext):
 @dp.message_handler(state=AddProductState.description)
 async def product_description(message: types.Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await message.answer("Введите категорию товара:")
+    await message.
+answer("Введите категорию товара:")
     await AddProductState.category.set()
 
 @dp.message_handler(state=AddProductState.category)
 async def product_category(message: types.Message, state: FSMContext):
     await state.update_data(category=message.text)
-    await message.answer("Введите цену товара (только число):")
+    await message.answer("Введите цену товара:")
     await AddProductState.price.set()
 
 @dp.message_handler(state=AddProductState.price)
 async def product_price(message: types.Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer("Пожалуйста, введите числовое значение для цены.")
-        return
-    await state.update_data(price=int(message.text))
-    await message.answer("Отправьте фото товара. Когда закончите — напишите 'Готово'.")
-    await AddProductState.photos.set()
+    try:
+        price = int(message.text)
+        await state.update_data(price=price)
+        await message.answer("Отправьте фото товара (по одному). Когда закончите — напишите 'Готово'")
+        await AddProductState.photos.set()
+    except ValueError:
+        await message.answer("Пожалуйста, введите число без букв.")
 
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=AddProductState.photos)
 async def product_photo(message: types.Message, state: FSMContext):
@@ -123,24 +134,26 @@ async def product_photo(message: types.Message, state: FSMContext):
     await state.update_data(photos=photo_list)
     await message.answer("Фото добавлено. Отправьте ещё или напишите 'Готово'.")
 
-@dp.message_handler(lambda m: m.text and m.text.lower() == "готово", state=AddProductState.photos)
+@dp.message_handler(lambda m: m.text.lower() == "готово", state=AddProductState.photos)
 async def finish_product(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    photos = ",".join(data.get("photos", []))
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO products (name, description, price, photos, category) VALUES (?, ?, ?, ?, ?)",
-            (data["name"], data["description"], data["price"], photos, data["category"])
-        )
-        await db.commit()
-    await message.answer("Товар успешно добавлен!")
+    photos = ",".join(data["photos"])
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "INSERT INTO products (name, description, price, photos, category) VALUES (?, ?, ?, ?, ?)",
+                (data["name"], data["description"], data["price"], photos, data["category"])
+            )
+            await db.commit()
+        await message.answer("Товар успешно добавлен!")
+    except Exception as e:
+        await message.answer(f"Ошибка при сохранении: {e}")
     await state.finish()
 
 @dp.callback_query_handler(lambda c: c.data == "broadcast")
 async def handle_broadcast(callback: types.CallbackQuery):
     await callback.message.answer("Введите текст рассылки:")
-    # Регистрация обработчика для рассылки
-    dp.register_message_handler(process_broadcast, content_types=types.ContentTypes.TEXT)
+    dp.register_message_handler(process_broadcast, content_types=types.ContentTypes.TEXT, state="*")
 
 async def process_broadcast(message: types.Message):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -152,12 +165,8 @@ async def process_broadcast(message: types.Message):
                 except:
                     pass
     await message.answer("Рассылка завершена.")
-    # Отменяем регистрацию обработчика для рассылки
     dp.message_handlers.unregister(process_broadcast)
 
-async def main():
-    await init_db()
-    await dp.start_polling()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+if name == "__main__":
+    asyncio.run(init_db())
+    executor.start_polling(dp, skip_updates=True)
