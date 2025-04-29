@@ -114,11 +114,13 @@ async def product_price(message: types.Message, state: FSMContext):
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=AddProductState.photos)
 async def product_photo(message: types.Message, state: FSMContext):
     file_id = message.photo[-1].file_id
-    photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_id}"
+    file = await bot.get_file(file_id)
+    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+
     data = await state.get_data()
-    photos = data.get("photos", [])
-    photos.append(photo_url)
-    await state.update_data(photos=photos)
+    photo_list = data.get("photos", [])
+    photo_list.append(file_url)
+    await state.update_data(photos=photo_list)
     await message.answer("Фото добавлено. Отправьте ещё или напишите 'Готово'.")
 
 @dp.message_handler(lambda m: m.text and m.text.lower() == "готово", state=AddProductState.photos)
