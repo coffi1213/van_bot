@@ -3,7 +3,6 @@ import asyncio
 import aiosqlite
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -84,8 +83,6 @@ async def admin_panel(message: types.Message):
 async def start_add_product(callback: types.CallbackQuery):
     await callback.message.answer("Введите название товара:")
     await AddProductState.name.set()
-    # Обнуляем список фотографий
-    await callback.message.reply("Отправьте название товара.")
 
 @dp.message_handler(state=AddProductState.name)
 async def product_name(message: types.Message, state: FSMContext):
@@ -156,6 +153,9 @@ async def process_broadcast(message: types.Message):
     # Отменяем регистрацию обработчика для рассылки
     dp.message_handlers.unregister(process_broadcast)
 
+async def main():
+    await init_db()
+    await dp.start_polling()
+
 if __name__ == "__main__":
-    asyncio.run(init_db())
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
