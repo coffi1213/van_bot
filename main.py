@@ -89,37 +89,37 @@ async def start_add_product(callback: types.CallbackQuery, state: FSMContext):
 async def product_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
     await message.answer("Введите описание товара:")
-    await AddProductState.next()
+    await AddProductState.description.set()
 
 @dp.message_handler(state=AddProductState.description)
 async def product_description(message: types.Message, state: FSMContext):
     await state.update_data(description=message.text)
     await message.answer("Введите категорию товара:")
-    await AddProductState.next()
+    await AddProductState.category.set()
 
 @dp.message_handler(state=AddProductState.category)
 async def product_category(message: types.Message, state: FSMContext):
-    await state.update_data(category=message.text)
-await message.answer("Введите цену товара:")
-    await AddProductState.next()
+    await state.
+update_data(category=message.text)
+    await message.answer("Введите цену товара (только число):")
+    await AddProductState.price.set()
 
 @dp.message_handler(state=AddProductState.price)
 async def product_price(message: types.Message, state: FSMContext):
     await state.update_data(price=message.text)
     await message.answer("Отправьте фото товара (по одному). Когда закончите — напишите 'Готово'")
-    await AddProductState.next()
+    await AddProductState.photos.set()
 
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=AddProductState.photos)
 async def product_photo(message: types.Message, state: FSMContext):
     file_id = message.photo[-1].file_id
-    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_id}"
     data = await state.get_data()
     photo_list = data.get("photos", [])
-    photo_list.append(file_url)
+    photo_list.append(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_id}")
     await state.update_data(photos=photo_list)
     await message.answer("Фото добавлено. Отправьте ещё или напишите 'Готово'.")
 
-@dp.message_handler(lambda message: message.text.lower() == "готово", state=AddProductState.photos)
+@dp.message_handler(lambda m: m.text.lower() == "готово", state=AddProductState.photos)
 async def finish_product(message: types.Message, state: FSMContext):
     data = await state.get_data()
     photos = ",".join(data["photos"])
