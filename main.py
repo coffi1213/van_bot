@@ -151,6 +151,6 @@ async def process_broadcast(message: types.Message):
     await message.answer("Рассылка завершена.")
     dp.message_handlers.unregister(process_broadcast)
 
-if name == "__main__":
+if __name__ == "__main__":
     asyncio.run(init_db())
     executor.start_polling(dp, skip_updates=True)
