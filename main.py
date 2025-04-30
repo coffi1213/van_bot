@@ -81,7 +81,7 @@ async def debug_products(message: types.Message):
 
     text = "Список товаров:\n"
     for pid, name, price, cat in products:
-        text += f"{pid}) {name} — {price}₽ [{cat}]
+        text += f"{pid}) {name} — {price}₽ [{cat}]\n"
     await message.answer(text)
 
 @dp.message_handler(commands=["admin"])
