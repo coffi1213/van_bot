@@ -79,7 +79,7 @@ async def debug_products(message: types.Message):
         await message.answer("В базе нет ни одного товара.")
         return
 
-    text = "Список товаров:
+    text = "Список товаров:\n"
 "
     for pid, name, price, cat in products:
         text += f"{pid}) {name} — {price}₽ [{cat}]
