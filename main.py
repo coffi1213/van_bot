@@ -60,9 +60,7 @@ async def show_products(msg):
             continue
         photo_list = photos.split(",")
         for i, photo_url in enumerate(photo_list):
-            caption = f"<b>{name}</b>
-{desc}
-Цена: {price}₽" if i == 0 else ""
+            caption = f"<b>{name}</b>\n{desc}\nЦена: {price}₽"
             btn = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Купить", url=f"https://t.me/{MANAGER_USERNAME}")
             )
