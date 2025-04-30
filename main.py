@@ -183,5 +183,11 @@ async def process_broadcast(message: types.Message):
 
 if __name__ == "__main__":
     asyncio.run(init_db())
-    loop = asyncio.get_event_loop()
+
+    import threading
+    import asyncio
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     executor.start_polling(dp, skip_updates=True, loop=loop)
